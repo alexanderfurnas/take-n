@@ -86,13 +86,13 @@ addEventListener('blur', () => { for (const k in Keys) Keys[k] = false; });
 addEventListener('pointerdown', () => SFX.init());
 
 const KEYMAP = [
-  // arrows move;   A S D  = special 1, special 2, HOT TAKE
-  //                Z X C V = jab, punch, low kick, kick   (Z+C = throw)
-  { u: ['ArrowUp'], d: ['ArrowDown'], l: ['ArrowLeft'], r: ['ArrowRight'], lp: ['KeyZ'], rp: ['KeyX'], lk: ['KeyC'], rk: ['KeyV'],
+  // arrows move;  Z = punch, X = kick (Z+X = throw);  A S = specials, D = HOT TAKE
+  // the fighter picks jab/straight/launcher etc. from context -- see humanInput()
+  { u: ['ArrowUp'], d: ['ArrowDown'], l: ['ArrowLeft'], r: ['ArrowRight'], p: ['KeyZ'], k: ['KeyX'],
     sp1: ['KeyA'], sp2: ['KeyS'], sup: ['KeyD'], thr: [], start: ['Enter', 'Space', 'NumpadEnter'], back: ['Escape', 'Backspace'] },
   {}, // player 2: gamepad only
 ];
-const BTN = ['u', 'd', 'l', 'r', 'lp', 'rp', 'lk', 'rk', 'sp1', 'sp2', 'sup', 'thr', 'start', 'back'];
+const BTN = ['u', 'd', 'l', 'r', 'p', 'k', 'sp1', 'sp2', 'sup', 'thr', 'start', 'back'];
 const prevHeld = [{}, {}];
 
 function rawHeld(pi) {
@@ -104,7 +104,7 @@ function rawHeld(pi) {
     const B = i => !!(gp.buttons[i] && gp.buttons[i].pressed), ax = gp.axes || [];
     h.u = h.u || B(12) || ax[1] < -0.5; h.d = h.d || B(13) || ax[1] > 0.5;
     h.l = h.l || B(14) || ax[0] < -0.5; h.r = h.r || B(15) || ax[0] > 0.5;
-    h.lp = h.lp || B(2); h.rp = h.rp || B(3); h.lk = h.lk || B(0); h.rk = h.rk || B(1);
+    h.p = h.p || B(2) || B(3); h.k = h.k || B(0) || B(1);
     h.sp1 = h.sp1 || B(4); h.sp2 = h.sp2 || B(6); h.sup = h.sup || B(5) || B(7); h.start = h.start || B(9); h.back = h.back || B(8);
   }
   return h;
@@ -116,11 +116,30 @@ function readPlayer(pi, mergeOther) {
   const p = prevHeld[pi], e = {};
   for (const b of BTN) e[b] = h[b] && !p[b];
   prevHeld[pi] = h;
-  return { u: h.u, d: h.d, l: h.l, r: h.r, lp: e.lp, rp: e.rp, lk: e.lk, rk: e.rk, sup: e.sup, thr: e.thr,
+  return { u: h.u, d: h.d, l: h.l, r: h.r, p: e.p, k: e.k, sup: e.sup, thr: e.thr,
     special: e.sp1 ? 0 : e.sp2 ? 1 : null,
     start: e.start, back: e.back, pu: e.u, pd: e.d, pl: e.l, pr: e.r };
 }
-function blankInput() { return { u: false, d: false, l: false, r: false, lp: false, rp: false, lk: false, rk: false, sup: false, thr: false, special: null, dash: 0 }; }
+// Two-button controls -> the four Tekken limbs the engine uses.
+//  Z: jab; →+Z or Z again after a hit: straight; Z a third time / ↓+Z: launcher
+//  X: kick; ↓+X: sweep;  Z+X: throw
+function humanInput(f, ip) {
+  const i = Object.assign(blankInput(), { u: ip.u, d: ip.d, l: ip.l, r: ip.r, sup: ip.sup, special: ip.special });
+  const fwd = f.facing > 0 ? ip.r : ip.l;
+  const chain = f.state === 'attack' && f.hasHit ? f.moveKey : null;
+  if (ip.p && ip.k) { i.thr = true; return i; }
+  if (ip.p) {
+    if (chain === 'rp') { i.rp = true; i.d = true; }          // third hit: uppercut launcher
+    else if (ip.d || chain === 'lp' || fwd) i.rp = true;     // ↓+Z launcher (d+rp), or straight
+    else i.lp = true;
+  }
+  if (ip.k) {
+    if (f.state === 'attack' && f.moveKey === 'lp' && f.mf <= 3) i.lk = true;   // Z then X quickly = throw
+    else i.rk = true;                                                           // ↓+X = sweep (d+rk)
+  }
+  return i;
+}
+function blankInput() { return { u: false, d: false, l: false, r: false, p: false, k: false, lp: false, rp: false, lk: false, rk: false, sup: false, thr: false, special: null, dash: 0 }; }
 
 // ---------------------------------------------------------------- audio
 const mf = m => 440 * Math.pow(2, (m - 69) / 12);
@@ -306,50 +325,59 @@ function drawBody(c, d, J, ox, oy, fc, o = {}) {
   const top = d.jacket || d.shirt;
   const sl = C(top), slD = C(shade(top, -0.28)), pa = C(d.pants), paD = C(shade(d.pants, -0.3));
   const T = d.limb || 5, B = d.build || 11;
-  const hip = Pt('hip'), nk = Pt('neck');
-  const shld = [lerp(hip[0], nk[0], 0.86), lerp(hip[1], nk[1], 0.86)];
+  const heads = d.heads, two = heads.length > 1;
+  const hip = Pt('hip'), nk = Pt('neck'), hd = Pt('head');
+  // body axis (hip -> neck joint) and the perpendicular pointing toward the fighter's front
+  const al = Math.hypot(nk[0] - hip[0], nk[1] - hip[1]) || 1;
+  const u = [(nk[0] - hip[0]) / al, (nk[1] - hip[1]) / al], pf = [-u[1] * fc, u[0] * fc];
+  const along = (p, k) => [p[0] + u[0] * k, p[1] + u[1] * k];
+  const side = (p, k) => [p[0] + pf[0] * k, p[1] + pf[1] * k];
+  // the torso is stamped as B-wide squares, so end it B/2 short: its top edge lands exactly on the neck joint
+  const tp = along(nk, -B / 2);
+  const chest = along(nk, -4);                       // where the arms attach
+  const spread = two ? 8 : 0;                        // two heads need broad shoulders
+  const shB = side(chest, -spread), shF = side(chest, spread);
+  const spots = two ? [side(hd, -7), side(hd, 7)] : [hd];
   const J2 = (a, b, e, t, col) => {
     seg(c, a[0], a[1], b[0], b[1], t + 2, OL); seg(c, b[0], b[1], e[0], e[1], t + 2, OL);
     seg(c, a[0], a[1], b[0], b[1], t, col); seg(c, b[0], b[1], e[0], e[1], t, col);
   };
   const hand = (p, col) => { c.fillStyle = OL; c.fillRect(Math.round(p[0] - 3), Math.round(p[1] - 3), 6, 6); c.fillStyle = col; c.fillRect(Math.round(p[0] - 2), Math.round(p[1] - 2), 4, 4); };
   const shoe = (p, col) => { const x = Math.round(p[0]), y = Math.round(p[1]); c.fillStyle = OL; c.fillRect(fc > 0 ? x - 4 : x - 6, y - 4, 11, 5); c.fillStyle = col; c.fillRect(fc > 0 ? x - 3 : x - 5, y - 3, 9, 3); };
+  const patch = (k, col) => { if (!d.patches) return; const e = Pt(k); c.fillStyle = C(col); c.fillRect(Math.round(e[0] - 2), Math.round(e[1] - 1), 4, 3); };
 
   // back arm & leg
-  J2(shld, Pt('bE'), Pt('bH'), T - 1, slD); hand(Pt('bH'), C(shade(d.skin, -0.2)));
-  if (d.patches) { const e = Pt('bE'); c.fillStyle = C(shade(d.patches, -0.2)); c.fillRect(Math.round(e[0] - 2), Math.round(e[1] - 1), 4, 3); }
+  J2(shB, Pt('bE'), Pt('bH'), T - 1, slD); hand(Pt('bH'), C(shade(d.skin, -0.2))); patch('bE', shade(d.patches || '#000000', -0.2));
   J2(hip, Pt('bK'), Pt('bF'), T, paD); shoe(Pt('bF'), C(shade(d.shoes, -0.3)));
-  // torso (+ coat tail)
-  const tdx = hip[0] - nk[0], tdy = hip[1] - nk[1], tl = Math.hypot(tdx, tdy) || 1;
-  const tail = [hip[0] + tdx / tl * 9, hip[1] + tdy / tl * 9];
-  seg(c, hip[0], hip[1], shld[0], shld[1], B + 2, OL);
+  // necks go in before the torso, so the collar covers their base and only a short neck shows under the chin
+  spots.forEach(sp => { const b0 = along(sp, -10); seg(c, b0[0], b0[1], sp[0], sp[1], 7, OL); });
+  spots.forEach(sp => { const b0 = along(sp, -10); seg(c, b0[0], b0[1], sp[0], sp[1], 5, C(shade(d.skin, -0.12))); });
+  // torso (+ coat tail, + shoulder yoke for two heads)
+  const tail = along(hip, -9);
+  seg(c, hip[0], hip[1], tp[0], tp[1], B + 2, OL);
   if (d.coat) seg(c, hip[0], hip[1], tail[0], tail[1], B + 2, OL);
-  seg(c, hip[0], hip[1], shld[0], shld[1], B, C(top));
+  if (two) seg(c, shB[0], shB[1], shF[0], shF[1], 11, OL);
+  seg(c, hip[0], hip[1], tp[0], tp[1], B, C(top));
   if (d.coat) seg(c, hip[0], hip[1], tail[0], tail[1], B, C(top));
-  if (d.split) seg(c, hip[0] + fc * B / 4, hip[1], shld[0] + fc * B / 4, shld[1], Math.floor(B / 2), C(d.split));
+  if (two) seg(c, shB[0], shB[1], shF[0], shF[1], 9, C(top));
+  if (d.split) { const a0 = side(hip, B / 4), a1 = side(tp, B / 4); seg(c, a0[0], a0[1], a1[0], a1[1], Math.floor(B / 2), C(d.split)); }
   if (d.jacket) {
-    const mid = [lerp(hip[0], shld[0], 0.4), lerp(hip[1], shld[1], 0.4)];
-    seg(c, mid[0] + fc * 2, mid[1], shld[0] + fc * 2, shld[1] + 1, 3, C(d.shirt));
-    if (d.tie) seg(c, mid[0] + fc * 2, mid[1] + 2, shld[0] + fc * 2, shld[1] + 2, 1, C(d.tie));
+    const m0 = side(along(hip, al * 0.4), 2), m1 = side(along(nk, -2), 2);
+    seg(c, m0[0], m0[1], m1[0], m1[1], 3, C(d.shirt));
+    if (d.tie) { const t0 = along(m0, 1); seg(c, t0[0], t0[1], m1[0], m1[1], 1, C(d.tie)); }
   }
   if (d.tweed && !fl) for (let i = 1; i < 6; i++) {
-    const k = i / 6, x = lerp(hip[0], shld[0], k), y = lerp(hip[1], shld[1], k);
-    c.fillStyle = d.tweed; c.fillRect(Math.round(x - fc * (B / 2 - 2)), Math.round(y), 1, 1); c.fillRect(Math.round(x + fc * (B / 2 - 3)), Math.round(y + 1), 1, 1);
+    const q = along(hip, al * i / 6);
+    c.fillStyle = d.tweed; const a0 = side(q, -(B / 2 - 2)), a1 = side(q, B / 2 - 3);
+    c.fillRect(Math.round(a0[0]), Math.round(a0[1]), 1, 1); c.fillRect(Math.round(a1[0]), Math.round(a1[1] + 1), 1, 1);
   }
-  if (d.scarf) seg(c, shld[0] - fc * 2, shld[1] + 1, shld[0] + fc * 3, shld[1] + 1, 4, C(d.scarf));
+  if (d.scarf) { const a0 = side(chest, -3), a1 = side(chest, 4); seg(c, a0[0], a0[1], a1[0], a1[1], 4, C(d.scarf)); }
   // front leg
   J2(hip, Pt('fK'), Pt('fF'), T, pa); shoe(Pt('fF'), C(d.shoes));
   // head(s)
-  const hd = Pt('head'), heads = d.heads;
-  const spots = heads.length === 1 ? [[hd[0], hd[1]]] : [[hd[0] - fc * 8, hd[1] + 1], [hd[0] + fc * 8, hd[1] - 1]];
-  // each head gets its own neck rooted under it, so two-headed fighters don't cross
-  const neckRoot = sp => heads.length === 1 ? shld : [shld[0] + (sp[0] - hd[0]) * 0.6, shld[1]];
-  spots.forEach(sp => { const r = neckRoot(sp); seg(c, r[0], r[1], sp[0], sp[1], 6, OL); });
-  spots.forEach(sp => { const r = neckRoot(sp); seg(c, r[0], r[1], sp[0], sp[1], 4, C(d.skin)); });
   spots.forEach((sp, i) => drawHead(c, heads[i], d, Math.round(sp[0]), Math.round(sp[1]), fc, fl));
   // front arm
-  J2(shld, Pt('fE'), Pt('fH'), T - 1, sl); hand(Pt('fH'), C(d.skin));
-  if (d.patches) { const e = Pt('fE'); c.fillStyle = C(d.patches); c.fillRect(Math.round(e[0] - 2), Math.round(e[1] - 1), 4, 3); }
+  J2(shF, Pt('fE'), Pt('fH'), T - 1, sl); hand(Pt('fH'), C(d.skin)); patch('fE', d.patches || '#000000');
 }
 
 const _spr = new Map();
@@ -363,7 +391,7 @@ function headSprite(def) {
   const k = def.id + '|head'; if (_spr.has(k)) return _spr.get(k);
   const cv = document.createElement('canvas'); cv.width = 32; cv.height = 26; const c = cv.getContext('2d');
   if (def.heads.length === 1) drawHead(c, def.heads[0], def, 15, 14, 1, false);
-  else { drawHead(c, def.heads[0], def, 8, 15, 1, false); drawHead(c, def.heads[1], def, 24, 13, 1, false); }
+  else { drawHead(c, def.heads[0], def, 8, 14, 1, false); drawHead(c, def.heads[1], def, 23, 14, 1, false); }
   _spr.set(k, cv); return cv;
 }
 function drawSprite(cv, x, y, scale, flip) {
@@ -419,7 +447,7 @@ class Fighter {
     this.state = 'idle'; this.st = 0; this.stun = 0; this.move = null; this.moveKey = null; this.mf = 0; this.hasHit = false;
     this.buf = []; this.combo = 0; this.comboShow = 0; this.comboN = 0; this.anim = 0; this.flash = 0; this.airHits = 0;
     this.invuln = 0; this.counter = 0; this.bounced = false; this.airAttacked = false; this.lowBlock = false; this.crouchHit = false;
-    this.inp = blankInput(); this.ai = {}; this.holdBack = false; this.holdDown = false; this.callout = null;
+    this.inp = blankInput(); this.pend = {}; this.ai = {}; this.holdBack = false; this.holdDown = false; this.callout = null;
   }
   get crouching() {
     return this.state === 'crouch' || (this.state === 'attack' && this.move && this.move.crouch) ||

@@ -10,7 +10,7 @@ const G = {
   sel: [0, 1], selLock: [false, false], selStep: 0, infoIdx: 0, sceneT: 0,
   arcade: null, cpuLevel: 4, diff: 0, cpuDmg: 1, showKeys: true, paused: false, pauseIdx: 0, vs: null, result: null, inp: [blankInput(), blankInput()],
 };
-const ok = ip => ip.lp || ip.start;
+const ok = ip => ip.p || ip.start;
 // EASY is the default: friends picking this up cold should be able to win
 const DIFFS = [
   { name: 'EASY', base: 0.4, step: 0.5, vscpu: 1.2, dmg: 0.7 },
@@ -125,7 +125,7 @@ function finishMatch() {
 function updateFight() {
   const ins = G.inp;
   const humans = G.fighters.filter(f => f.ctrl !== 'cpu');
-  if (G.mode === 'demo') { if (ins[0].start || ins[0].lp || ins[1].start || ins[0].back) { go('title'); return; } }
+  if (G.mode === 'demo') { if (ins[0].start || ins[0].p || ins[1].start || ins[0].back) { go('title'); return; } }
   else if (G.paused) {
     const ip = ins[0].pu || ins[0].pd || ok(ins[0]) || ins[0].back || ins[0].start ? ins[0] : ins[1];
     if (ip.pu || ip.pd) { G.pauseIdx = 1 - G.pauseIdx; SFX.play('select'); }
@@ -142,6 +142,12 @@ function updateFight() {
     if (G.phaseT >= T0 + 95) { G.phase = 'fight'; G.fightActive = true; for (const f of G.fighters) f.state = 'idle'; }
   }
   if (G.shake > 0) G.shake--;
+  // buffer button presses (~10 frames) so presses during hit-freeze or recovery still come out
+  for (const f of G.fighters) if (f.ctrl === 'p1' && G.fightActive) {
+    const ip = ins[0], pd = f.pend || (f.pend = {});
+    for (const b of ['p', 'k', 'sup']) if (ip[b]) pd[b] = 10;
+    if (ip.special != null) { pd.special = ip.special; pd.spT = 10; }
+  }
   if (G.superFreeze) { if (++G.superFreeze.t >= G.superFreeze.len) G.superFreeze = null; return; }
   if (G.hitstop > 0) { G.hitstop--; return; }
   if (G.slow > 0) { G.slow--; if (G.slow % 3) return; }
@@ -149,11 +155,20 @@ function updateFight() {
   for (const f of G.fighters) {
     if (f.ctrl === 'cpu') f.inp = cpuInput(f, f.opp);
     else if (f.ctrl === 'dummy') f.inp = blankInput();
-    else if (G.fightActive) { const ip = ins[f.ctrl === 'p1' ? 0 : 1]; f.inp = Object.assign(blankInput(), ip, { start: false }); }
+    else if (G.fightActive) {
+      const ip = ins[f.ctrl === 'p1' ? 0 : 1], pd = f.pend || {};
+      f.inp = humanInput(f, { u: ip.u, d: ip.d, l: ip.l, r: ip.r, p: pd.p > 0, k: pd.k > 0, sup: pd.sup > 0, special: pd.spT > 0 ? pd.special : null });
+    }
     else f.inp = blankInput();
   }
   const [a, b] = G.fighters;
+  const ids = [a.moveId, b.moveId];
   a.update(b); b.update(a);
+  G.fighters.forEach((f, i) => {
+    if (!f.pend) return;
+    if (f.moveId !== ids[i]) f.pend = {};   // a move came out: the buffered press is used up
+    else for (const k of ['p', 'k', 'sup', 'spT']) if (f.pend[k] > 0) f.pend[k]--;
+  });
   // collision / camera
   for (let k = 0; k < 2; k++) {
     if (Math.abs(a.y - b.y) < 45 && a.state !== 'down' && b.state !== 'down') {
@@ -214,7 +229,7 @@ function drawHUD() {
   else txt(String(Math.max(0, G.timer)).padStart(2, '0'), W / 2, 10, 16, G.timer <= 10 ? '#f44' : '#fff', 'center');
   if (G.showKeys && G.mode !== 'demo' && !G.paused) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(W / 2 - 108, 238, 216, 31);
-    txt('Z/X PUNCH · C/V KICK', W / 2, 240, 8, '#fff', 'center');
+    txt('Z PUNCH · X KICK · Z+X THROW', W / 2, 240, 8, '#fff', 'center');
     txt('A/S SPECIALS · D HOT TAKE', W / 2, 250, 8, '#ff0', 'center');
     txt('HOLD BACK=BLOCK · H:HIDE', W / 2, 260, 8, '#9cf', 'center');
   }
@@ -388,22 +403,20 @@ function drawHelp() {
   ctx.fillStyle = 'rgba(0,0,0,0.88)'; ctx.fillRect(10, 86, W - 20, 180);
   const L = [
     ['HOW TO TAKE', '#ff0'],
-    ['MOVE: ARROWS    PUNCH: Z X    KICK: C V', '#fff'],
-    ['SPECIALS: A S   HOT TAKE: D   THROW: Z+C', '#fff'],
-    ['PAD: X/Y PUNCH A/B KICK LB/LT SPECIAL RB SUPER', '#fff'],
+    ['MOVE: ARROWS    PUNCH: Z    KICK: X', '#fff'],
+    ['SPECIALS: A S   HOT TAKE: D   THROW: Z+X', '#fff'],
+    ['PAD: X/Y PUNCH  A/B KICK  LB/LT SPECIAL  RB SUPER', '#fff'],
     ['', ''],
-    ['', ''],
-    ['HOLD BACK TO BLOCK · DOWN-BACK BLOCKS LOWS', '#fc9'],
-    ['HIGHS (PUNCHES) WHIFF ON CROUCHERS', '#fc9'],
-    ['DOWN+X = LAUNCHER, THEN JUGGLE THEM', '#fc9'],
-    ['ALSO:', '#fc9'],
-    ['DOUBLE-TAP FORWARD/BACK = DASH', '#fc9'],
-    ['FILL THE TAKE METER, THEN UNLEASH A HOT TAKE', '#fc9'],
+    ['HOLD BACK TO BLOCK · DOWN-BACK BLOCKS SWEEPS', '#fc9'],
+    ['PUNCHES WHIFF ON CROUCHERS (DUCK THEM!)', '#fc9'],
+    ['Z,Z,X = COMBO   ·   Z,Z,Z = LAUNCHER COMBO', '#fc9'],
+    ['DOWN+Z = UPPERCUT   ·   DOWN+X = SWEEP', '#fc9'],
+    ['→+Z = STRONG PUNCH  ·  DOUBLE-TAP = DASH', '#fc9'],
+    ['FILL THE TAKE METER, THEN PRESS D', '#fc9'],
     ['BELOW 25% HP: RAGE BAIT (+15% DAMAGE)', '#fc9'],
     ['ESC: PAUSE (MOVE LIST) · M: MUTE · H: KEYS', '#9ab'],
   ];
   L.forEach(([s, c], i) => txt(s, 24, 93 + i * 12, 8, c, 'left'));
-  const yy = 93 + 9 * 12; inputTxt('qcf', 'P', 24 + 48, yy, '#ff0'); txt('/', 24 + 100, yy, 8, '#fc9'); inputTxt('qcb', 'K', 24 + 116, yy, '#ff0'); txt('(OLD-SCHOOL)', 24 + 170, yy, 8, '#888');
 }
 
 // ---------------------------------------------------------------- select
@@ -419,7 +432,7 @@ function updateSelect() {
     for (let i = 0; i < 2; i++) {
       const ip = G.inp[i];
       if (!G.selLock[i]) { move(i, ip); if (ok(ip)) { G.selLock[i] = true; G.infoIdx = i; SFX.play('confirm'); } }
-      else if (ip.back || ip.lk) { G.selLock[i] = false; }
+      else if (ip.back || ip.k) { G.selLock[i] = false; }
     }
     if (G.inp[0].back && !G.selLock[0]) { go('title'); return; }
     if (G.selLock[0] && G.selLock[1]) { if (!G.lockT) G.lockT = G.t; if (G.t - G.lockT > 30) { G.lockT = 0; setupVs(ROSTER[G.sel[0]], ROSTER[G.sel[1]], 'p1', 'p2'); } }
@@ -439,7 +452,7 @@ function updateSelect() {
     }
   } else {
     move(1, ip);
-    if (ip.back || ip.lk) { G.selStep = 0; G.selLock[0] = false; G.infoIdx = 0; return; }
+    if (ip.back || ip.k) { G.selStep = 0; G.selLock[0] = false; G.infoIdx = 0; return; }
     if (ok(ip)) {
       SFX.play('confirm'); G.cpuLevel = DIFFS[G.diff].vscpu;
       if (G.mode === 'practice') startMatch(ROSTER[G.sel[0]], ROSTER[G.sel[1]], 'p1', 'dummy');
@@ -541,7 +554,7 @@ function drawResult() {
 function updateCont() {
   if (--G.contT <= 0) { go('title'); return; }
   if (ok(G.inp[0]) || G.inp[0].start) { SFX.play('confirm'); nextArcade(); }
-  else if (G.inp[0].lk || G.inp[0].rp) G.contT = Math.floor(G.contT / 60) * 60 - 1;
+  else if (G.inp[0].k) G.contT = Math.floor(G.contT / 60) * 60 - 1;
 }
 function drawCont() {
   drawTitleBg();
