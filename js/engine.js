@@ -79,18 +79,22 @@ addEventListener('keydown', e => {
   Keys[e.code] = true;
   SFX.init();
   if (e.code === 'KeyM' && !e.repeat) SFX.setMuted(!SFX.muted);
+  if (e.code === 'KeyC' && !e.repeat && typeof G !== 'undefined') G.showKeys = !G.showKeys;
 });
 addEventListener('keyup', e => { Keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in Keys) Keys[k] = false; });
 addEventListener('pointerdown', () => SFX.init());
 
 const KEYMAP = [
+  // right hand:  U I O  = jab, punch, special 1      P = HOT TAKE
+  //              J K L  = low kick, kick, special 2
   { u: ['KeyW'], d: ['KeyS'], l: ['KeyA'], r: ['KeyD'], lp: ['KeyU'], rp: ['KeyI'], lk: ['KeyJ'], rk: ['KeyK'],
-    sup: ['KeyO', 'KeyL'], thr: ['KeyH'], start: ['Enter', 'Space'], back: ['Escape', 'Backspace'] },
+    sp1: ['KeyO'], sp2: ['KeyL'], sup: ['KeyP'], thr: ['KeyH'], start: ['Enter', 'Space'], back: ['Escape', 'Backspace'] },
   { u: ['ArrowUp'], d: ['ArrowDown'], l: ['ArrowLeft'], r: ['ArrowRight'], lp: ['BracketLeft', 'Numpad4'], rp: ['BracketRight', 'Numpad5'],
-    lk: ['Semicolon', 'Numpad1'], rk: ['Quote', 'Numpad2'], sup: ['Backslash', 'Numpad6'], thr: ['Slash', 'Numpad3'], start: ['NumpadEnter'], back: [] },
+    lk: ['Semicolon', 'Numpad1'], rk: ['Quote', 'Numpad2'], sp1: ['Backslash', 'Numpad6'], sp2: ['Slash', 'Numpad3'], sup: ['ShiftRight', 'Numpad0'],
+    thr: [], start: ['NumpadEnter'], back: [] },
 ];
-const BTN = ['u', 'd', 'l', 'r', 'lp', 'rp', 'lk', 'rk', 'sup', 'thr', 'start', 'back'];
+const BTN = ['u', 'd', 'l', 'r', 'lp', 'rp', 'lk', 'rk', 'sp1', 'sp2', 'sup', 'thr', 'start', 'back'];
 const prevHeld = [{}, {}];
 
 function rawHeld(pi) {
@@ -103,7 +107,7 @@ function rawHeld(pi) {
     h.u = h.u || B(12) || ax[1] < -0.5; h.d = h.d || B(13) || ax[1] > 0.5;
     h.l = h.l || B(14) || ax[0] < -0.5; h.r = h.r || B(15) || ax[0] > 0.5;
     h.lp = h.lp || B(2); h.rp = h.rp || B(3); h.lk = h.lk || B(0); h.rk = h.rk || B(1);
-    h.sup = h.sup || B(5) || B(7); h.thr = h.thr || B(4) || B(6); h.start = h.start || B(9); h.back = h.back || B(8);
+    h.sp1 = h.sp1 || B(4); h.sp2 = h.sp2 || B(6); h.sup = h.sup || B(5) || B(7); h.start = h.start || B(9); h.back = h.back || B(8);
   }
   return h;
 }
@@ -115,6 +119,7 @@ function readPlayer(pi, mergeOther) {
   for (const b of BTN) e[b] = h[b] && !p[b];
   prevHeld[pi] = h;
   return { u: h.u, d: h.d, l: h.l, r: h.r, lp: e.lp, rp: e.rp, lk: e.lk, rk: e.rk, sup: e.sup, thr: e.thr,
+    special: e.sp1 ? 0 : e.sp2 ? 1 : null,
     start: e.start, back: e.back, pu: e.u, pd: e.d, pl: e.l, pr: e.r };
 }
 function blankInput() { return { u: false, d: false, l: false, r: false, lp: false, rp: false, lk: false, rk: false, sup: false, thr: false, special: null, dash: 0 }; }
@@ -601,8 +606,9 @@ function applyHit(att, def, h, proj, px, py) {
   if (wasCounter) dmg *= 1.25;
   dmg *= Math.max(0.3, 1 - (att.combo - 1) * 0.1);
   if (att.hp < MAXHP * 0.25) dmg *= 1.15;   // rage
+  if (att.ctrl === 'cpu' && def.ctrl !== 'cpu') dmg *= G.cpuDmg || 1;   // difficulty
   dmg = Math.max(1, Math.round(dmg));
-  def.hp = Math.max(0, def.hp - dmg);
+  def.hp = Math.max(G.mode === 'practice' ? 1 : 0, def.hp - dmg);
   if (!h.isSuper) att.meter = Math.min(100, att.meter + dmg * 1.4);
   def.meter = Math.min(100, def.meter + dmg * 0.9);
   def.flash = 8; def.move = null; def.counter = 0;
