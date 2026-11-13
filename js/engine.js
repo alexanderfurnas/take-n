@@ -343,12 +343,20 @@ function drawBody(c, d, J, ox, oy, fc, o = {}) {
     seg(c, a[0], a[1], b[0], b[1], t, col); seg(c, b[0], b[1], e[0], e[1], t, col);
   };
   const hand = (p, col) => { c.fillStyle = OL; c.fillRect(Math.round(p[0] - 3), Math.round(p[1] - 3), 6, 6); c.fillStyle = col; c.fillRect(Math.round(p[0] - 2), Math.round(p[1] - 2), 4, 4); };
-  const shoe = (p, col) => { const x = Math.round(p[0]), y = Math.round(p[1]); c.fillStyle = OL; c.fillRect(fc > 0 ? x - 4 : x - 6, y - 4, 11, 5); c.fillStyle = col; c.fillRect(fc > 0 ? x - 3 : x - 5, y - 3, 9, 3); };
+  // shoe sits ON the ground: taller heel/upper behind the ankle, lower toe in front, darker sole
+  const shoe = (p, col) => {
+    const x = Math.round(p[0]), y = Math.round(p[1]);
+    const R = (dx, dy, w, h, cl) => { c.fillStyle = cl; c.fillRect(fc > 0 ? x + dx : x - dx - w + 1, y + dy, w, h); };
+    R(-4, -6, 8, 6, OL); R(3, -4, 6, 4, OL);
+    R(-3, -5, 6, 4, col); R(3, -3, 5, 2, col); R(-3, -2, 11, 1, C(shade(d.shoes, -0.45)));
+    R(0, -5, 2, 1, C(shade(d.shoes, 0.3)));
+  };
+  const ankle = k => { const f = Pt(k); return [f[0], f[1] - 4]; };
   const patch = (k, col) => { if (!d.patches) return; const e = Pt(k); c.fillStyle = C(col); c.fillRect(Math.round(e[0] - 2), Math.round(e[1] - 1), 4, 3); };
 
   // back arm & leg
   J2(shB, Pt('bE'), Pt('bH'), T - 1, slD); hand(Pt('bH'), C(shade(d.skin, -0.2))); patch('bE', shade(d.patches || '#000000', -0.2));
-  J2(hip, Pt('bK'), Pt('bF'), T, paD); shoe(Pt('bF'), C(shade(d.shoes, -0.3)));
+  J2(hip, Pt('bK'), ankle('bF'), T, paD); shoe(Pt('bF'), C(shade(d.shoes, -0.3)));
   // necks go in before the torso, so the collar covers their base and only a short neck shows under the chin
   spots.forEach(sp => { const b0 = along(sp, -10); seg(c, b0[0], b0[1], sp[0], sp[1], 7, OL); });
   spots.forEach(sp => { const b0 = along(sp, -10); seg(c, b0[0], b0[1], sp[0], sp[1], 5, C(shade(d.skin, -0.12))); });
@@ -373,7 +381,7 @@ function drawBody(c, d, J, ox, oy, fc, o = {}) {
   }
   if (d.scarf) { const a0 = side(chest, -3), a1 = side(chest, 4); seg(c, a0[0], a0[1], a1[0], a1[1], 4, C(d.scarf)); }
   // front leg
-  J2(hip, Pt('fK'), Pt('fF'), T, pa); shoe(Pt('fF'), C(d.shoes));
+  J2(hip, Pt('fK'), ankle('fF'), T, pa); shoe(Pt('fF'), C(d.shoes));
   // head(s)
   spots.forEach((sp, i) => drawHead(c, heads[i], d, Math.round(sp[0]), Math.round(sp[1]), fc, fl));
   // front arm
