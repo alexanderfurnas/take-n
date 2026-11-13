@@ -2,7 +2,7 @@
 
 A retro browser fighting game where pollsters and political take-makers settle it the old-fashioned way. Affectionate parody.
 
-**Play:** https://alexanderfurnas.github.io/take-n/
+**Play:** https://alexanderfurnas.com/take-n/
 
 ## Controls
 | | Move | LP | RP | LK | RK | Hot Take |
