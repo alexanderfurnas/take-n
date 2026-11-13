@@ -273,9 +273,9 @@ const ROSTER = [
     id: 'bonbach', name: 'BONICA × GRUMBACH', short: 'BON×GRUM', outlet: 'ON DATA & DEMOCRACY', title: 'THE TWO-HEADED REGRESSION', stage: 'substack',
     skin: '#e3b28e', heads: [
       { hair: 'short', hairColor: '#2a2018', glasses: true },
-      { hair: 'curly', hairColor: '#3a2a1a', beard: true, skin: '#dcaa84' },
+      { hair: 'curly', hairColor: '#3a2a1a', beard: true, glasses: true, glassesColor: '#5a3a1a', skin: '#dcaa84' },
     ],
-    shirt: '#4a6fa5', jacket: '#f0f0f0', coat: true, pants: '#2e3440', shoes: '#222222', build: 15, height: 1.02,
+    shirt: '#cfe0f0', jacket: '#7a5c3e', tie: '#7a1f2b', tweed: '#a88a62', patches: '#4a3424', pants: '#4a4a40', shoes: '#3b2414', build: 17, height: 1.02,
     intro: 'We ran the regression. / Twice. You lose.', quote: 'Statistically significant beatdown. (p < 0.001)',
     specials: [
       { name: 'DIME SCORE', input: 'qcf', btn: 'p', pose: 'cast', su: 11, ac: 2, rc: 22, special: true,

@@ -314,6 +314,7 @@ function drawBody(c, d, J, ox, oy, fc, o = {}) {
 
   // back arm & leg
   J2(shld, Pt('bE'), Pt('bH'), T - 1, slD); hand(Pt('bH'), C(shade(d.skin, -0.2)));
+  if (d.patches) { const e = Pt('bE'); c.fillStyle = C(shade(d.patches, -0.2)); c.fillRect(Math.round(e[0] - 2), Math.round(e[1] - 1), 4, 3); }
   J2(hip, Pt('bK'), Pt('bF'), T, paD); shoe(Pt('bF'), C(shade(d.shoes, -0.3)));
   // torso (+ coat tail)
   const tdx = hip[0] - nk[0], tdy = hip[1] - nk[1], tl = Math.hypot(tdx, tdy) || 1;
@@ -328,16 +329,24 @@ function drawBody(c, d, J, ox, oy, fc, o = {}) {
     seg(c, mid[0] + fc * 2, mid[1], shld[0] + fc * 2, shld[1] + 1, 3, C(d.shirt));
     if (d.tie) seg(c, mid[0] + fc * 2, mid[1] + 2, shld[0] + fc * 2, shld[1] + 2, 1, C(d.tie));
   }
+  if (d.tweed && !fl) for (let i = 1; i < 6; i++) {
+    const k = i / 6, x = lerp(hip[0], shld[0], k), y = lerp(hip[1], shld[1], k);
+    c.fillStyle = d.tweed; c.fillRect(Math.round(x - fc * (B / 2 - 2)), Math.round(y), 1, 1); c.fillRect(Math.round(x + fc * (B / 2 - 3)), Math.round(y + 1), 1, 1);
+  }
   if (d.scarf) seg(c, shld[0] - fc * 2, shld[1] + 1, shld[0] + fc * 3, shld[1] + 1, 4, C(d.scarf));
   // front leg
   J2(hip, Pt('fK'), Pt('fF'), T, pa); shoe(Pt('fF'), C(d.shoes));
   // head(s)
   const hd = Pt('head'), heads = d.heads;
-  const spots = heads.length === 1 ? [[hd[0], hd[1]]] : [[hd[0] - fc * 6, hd[1] + 1], [hd[0] + fc * 6, hd[1] - 1]];
-  spots.forEach(sp => { seg(c, shld[0], shld[1], sp[0], sp[1], 6, OL); seg(c, shld[0], shld[1], sp[0], sp[1], 4, C(d.skin)); });
+  const spots = heads.length === 1 ? [[hd[0], hd[1]]] : [[hd[0] - fc * 8, hd[1] + 1], [hd[0] + fc * 8, hd[1] - 1]];
+  // each head gets its own neck rooted under it, so two-headed fighters don't cross
+  const neckRoot = sp => heads.length === 1 ? shld : [shld[0] + (sp[0] - hd[0]) * 0.6, shld[1]];
+  spots.forEach(sp => { const r = neckRoot(sp); seg(c, r[0], r[1], sp[0], sp[1], 6, OL); });
+  spots.forEach(sp => { const r = neckRoot(sp); seg(c, r[0], r[1], sp[0], sp[1], 4, C(d.skin)); });
   spots.forEach((sp, i) => drawHead(c, heads[i], d, Math.round(sp[0]), Math.round(sp[1]), fc, fl));
   // front arm
   J2(shld, Pt('fE'), Pt('fH'), T - 1, sl); hand(Pt('fH'), C(d.skin));
+  if (d.patches) { const e = Pt('fE'); c.fillStyle = C(d.patches); c.fillRect(Math.round(e[0] - 2), Math.round(e[1] - 1), 4, 3); }
 }
 
 const _spr = new Map();
@@ -351,7 +360,7 @@ function headSprite(def) {
   const k = def.id + '|head'; if (_spr.has(k)) return _spr.get(k);
   const cv = document.createElement('canvas'); cv.width = 32; cv.height = 26; const c = cv.getContext('2d');
   if (def.heads.length === 1) drawHead(c, def.heads[0], def, 15, 14, 1, false);
-  else { drawHead(c, def.heads[0], def, 9, 15, 1, false); drawHead(c, def.heads[1], def, 22, 13, 1, false); }
+  else { drawHead(c, def.heads[0], def, 8, 15, 1, false); drawHead(c, def.heads[1], def, 24, 13, 1, false); }
   _spr.set(k, cv); return cv;
 }
 function drawSprite(cv, x, y, scale, flip) {
