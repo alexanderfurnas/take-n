@@ -175,6 +175,10 @@ const SFX = {
       case 'land': this.noise(n, 0.07, 0.15, 400, 'lowpass'); break;
       case 'counter': this.tone(n, 1200, 0.15, 'square', 0.1, 2400); break;
       case 'throw': this.noise(n, 0.25, 0.4, 300, 'lowpass'); this.tone(n, 110, 0.25, 'square', 0.15, 40); break;
+      case 'boombap': // kick, horn stab, snare, kick-kick
+        this.tone(n, 150, 0.14, 'sine', 0.6, 40); [58, 62, 65].forEach(m => this.tone(n, mf(m), 0.22, 'sawtooth', 0.05));
+        this.noise(n + 0.18, 0.12, 0.35, 1800); this.tone(n + 0.27, 150, 0.12, 'sine', 0.5, 40); this.tone(n + 0.36, 150, 0.12, 'sine', 0.5, 40); break;
+      case 'swish': this.noise(n, 0.25, 0.3, 5000, 'bandpass'); [72, 76, 79].forEach((m, i) => this.tone(n + i * 0.05, mf(m), 0.15, 'square', 0.06)); break;
       case 'shot': this.noise(n, 0.12, 0.4, 3000); this.tone(n, 900, 0.1, 'square', 0.08, 200); break;
     }
   },

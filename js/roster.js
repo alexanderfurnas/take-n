@@ -78,22 +78,6 @@ function drawDime(p) {
   ctx.fillStyle = '#d6dadf'; ctx.fillRect(x - w, y - 3, w * 2 + 1, 7); ctx.fillRect(x - w - 1, y - 2, w * 2 + 3, 5);
   ctx.fillStyle = '#fff'; ctx.fillRect(x - w, y - 3, 1, 2);
 }
-function drawFlask(p) {
-  const x = Math.round(p.x), y = Math.round(p.y);
-  ctx.fillStyle = '#111'; ctx.fillRect(x - 3, y - 8, 6, 6); ctx.fillRect(x - 6, y - 3, 12, 10);
-  ctx.fillStyle = '#ddeeff'; ctx.fillRect(x - 2, y - 7, 4, 5);
-  ctx.fillStyle = '#4e4'; ctx.fillRect(x - 5, y - 2, 10, 8);
-  ctx.fillStyle = '#afa'; ctx.fillRect(x - 3, y, 2, 2); if (p.t % 10 < 5) ctx.fillRect(x + 1, y - 10, 2, 2);
-}
-function drawPuddle(p) {
-  const x = Math.round(p.x), y = Math.round(p.y);
-  ctx.globalAlpha = p.life < 20 ? p.life / 20 : 1;
-  ctx.fillStyle = '#063'; ctx.fillRect(x - 19, y - 3, 38, 6);
-  ctx.fillStyle = '#2c4'; ctx.fillRect(x - 18, y - 2, 36, 4);
-  ctx.fillStyle = '#8f8'; ctx.fillRect(x - 14, y - 2, 20, 1);
-  for (let i = 0; i < 5; i++) { const by = y - 3 - ((p.t * 0.6 + i * 7) % 16); ctx.fillStyle = '#9f9'; ctx.fillRect(x - 14 + i * 7, Math.round(by), 2, 2); }
-  ctx.globalAlpha = 1;
-}
 function drawBeam(p) {
   const x1 = Math.round(p.x - p.w / 2), y = Math.round(p.y), w = Math.round(p.w);
   const fl = p.t % 4 < 2;
@@ -134,6 +118,25 @@ function drawCrowd(p) {
   }
   if (p.t % 12 < 8) txt('+670,000,000', Math.round(p.x), Math.round(p.y - 30), 8, '#ff0', 'center');
 }
+// a spinning soul 45 in Warriors blue & gold
+function drawVinyl(p) {
+  const x = Math.round(p.x), y = Math.round(p.y);
+  for (let dy = -7; dy <= 7; dy++) { const w = Math.round(Math.sqrt(49 - dy * dy)); ctx.fillStyle = '#000'; ctx.fillRect(x - w - 1, y + dy, w * 2 + 3, 1); }
+  for (let dy = -6; dy <= 6; dy++) { const w = Math.round(Math.sqrt(36 - dy * dy)); ctx.fillStyle = Math.abs(dy) % 2 ? '#1c1c1c' : '#2c2c2c'; ctx.fillRect(x - w, y + dy, w * 2 + 1, 1); }
+  ctx.fillStyle = '#1d428a'; ctx.fillRect(x - 2, y - 3, 5, 7); ctx.fillRect(x - 3, y - 2, 7, 5);
+  ctx.fillStyle = '#ffc72c'; ctx.fillRect(x - 1, y - 1, 3, 3); ctx.fillStyle = '#000'; ctx.fillRect(x, y, 1, 1);
+  const a = p.t * 0.5; seg(ctx, x + Math.cos(a) * 3.5, y + Math.sin(a) * 3.5, x + Math.cos(a) * 5.5, y + Math.sin(a) * 5.5, 1, '#888');
+}
+function fxNote(x, y) {
+  const col = pick(['#ffc72c', '#6fa0ff', '#fff']), dx = rnd(-0.4, 0.4);
+  fxCustom(e => {
+    const nx = Math.round(e.x + e.t * dx), ny = Math.round(e.y - e.t * 0.5);
+    ctx.globalAlpha = 1 - e.t / e.life;
+    ctx.fillStyle = col; ctx.fillRect(nx, ny, 3, 2); ctx.fillRect(nx + 2, ny - 5, 1, 5); ctx.fillRect(nx + 3, ny - 5, 2, 1);
+    ctx.globalAlpha = 1;
+  }, 30, { x: x - 2, y: y - 2 });
+}
+
 function drawWord(p) {
   const x = Math.round(p.x), y = Math.round(p.y), w = p.w, d = Math.sign(p.vx) || 1;
   rrect(ctx, x - w / 2 - 1, y - 8, w + 2, 16, '#111');
@@ -278,11 +281,14 @@ const ROSTER = [
       { name: 'DIME SCORE', input: 'qcf', btn: 'p', pose: 'cast', su: 11, ac: 2, rc: 22, special: true,
         desc: 'Scatters a fan of campaign-finance dimes. Every dime gets an ideology score.',
         spawn(f) { for (const vy of [-1.1, 0, 1.1]) shoot(f, { oy: -42, speed: 4, vy, w: 8, h: 8, dmg: 4, hs: 14, draw: drawDime }); } },
-      { name: 'LABORATORIES', input: 'qcb', btn: 'k', pose: 'raise', su: 12, ac: 2, rc: 22, special: true,
-        desc: 'Laboratories Against Democracy: a flask that leaves a bubbling low hazard.',
+      { name: 'SPLASH BROTHER', input: 'qcb', btn: 'k', pose: 'raise', su: 12, ac: 2, rc: 22, special: true,
+        desc: 'Pulls a soul 45 from the crate and sinks it from the logo over a boom-bap beat. #DubNation',
         spawn(f) {
-          shoot(f, { oy: -60, speed: 2.6, vy: -3.5, grav: 0.22, w: 9, h: 11, dmg: 6, hs: 16, ground: true, draw: drawFlask,
-            onGround(p) { p.dead = true; spark(p.x, GROUND - 4, '#7f7', 10); shoot(p.owner, { x: p.x, y: GROUND - 4, vx: 0, w: 36, h: 8, dmg: 3, lvl: 'low', hits: 5, interval: 22, life: 160, hs: 14, bs: 8, kb: 0.5, clash: false, draw: drawPuddle }); } });
+          SFX.play('boombap');
+          shoot(f, { oy: -64, speed: 3.4, vy: -5, grav: 0.24, w: 13, h: 13, dmg: 10, hs: 22, kb: 2.5, knockdown: true, ground: true, draw: drawVinyl,
+            update(p) { if (p.t % 5 === 0) fxNote(p.x, p.y); },
+            onHit(p, r) { if (r === 'hit') { SFX.play('swish'); popText('SPLASH!', p.owner.opp.x, GROUND - 104, '#ffc72c', 16, 60); popText('#DUBNATION', p.owner.opp.x, GROUND - 84, '#6fa0ff', 8, 70); } },
+            onGround(p) { p.dead = true; spark(p.x, GROUND - 4, '#222', 10); spark(p.x, GROUND - 4, '#ffc72c', 4); popText('BRICK!', p.x, GROUND - 30, '#f84'); } });
         } },
     ],
     super: { name: 'REGRESSION LINE', pose: 'cast', su: 30, ac: 2, rc: 40, special: true, isSuper: true,
