@@ -79,20 +79,18 @@ addEventListener('keydown', e => {
   Keys[e.code] = true;
   SFX.init();
   if (e.code === 'KeyM' && !e.repeat) SFX.setMuted(!SFX.muted);
-  if (e.code === 'KeyC' && !e.repeat && typeof G !== 'undefined') G.showKeys = !G.showKeys;
+  if (e.code === 'KeyH' && !e.repeat && typeof G !== 'undefined') G.showKeys = !G.showKeys;
 });
 addEventListener('keyup', e => { Keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in Keys) Keys[k] = false; });
 addEventListener('pointerdown', () => SFX.init());
 
 const KEYMAP = [
-  // right hand:  U I O  = jab, punch, special 1      P = HOT TAKE
-  //              J K L  = low kick, kick, special 2
-  { u: ['KeyW'], d: ['KeyS'], l: ['KeyA'], r: ['KeyD'], lp: ['KeyU'], rp: ['KeyI'], lk: ['KeyJ'], rk: ['KeyK'],
-    sp1: ['KeyO'], sp2: ['KeyL'], sup: ['KeyP'], thr: ['KeyH'], start: ['Enter', 'Space'], back: ['Escape', 'Backspace'] },
-  { u: ['ArrowUp'], d: ['ArrowDown'], l: ['ArrowLeft'], r: ['ArrowRight'], lp: ['BracketLeft', 'Numpad4'], rp: ['BracketRight', 'Numpad5'],
-    lk: ['Semicolon', 'Numpad1'], rk: ['Quote', 'Numpad2'], sp1: ['Backslash', 'Numpad6'], sp2: ['Slash', 'Numpad3'], sup: ['ShiftRight', 'Numpad0'],
-    thr: [], start: ['NumpadEnter'], back: [] },
+  // arrows move;   A S D  = special 1, special 2, HOT TAKE
+  //                Z X C V = jab, punch, low kick, kick   (Z+C = throw)
+  { u: ['ArrowUp'], d: ['ArrowDown'], l: ['ArrowLeft'], r: ['ArrowRight'], lp: ['KeyZ'], rp: ['KeyX'], lk: ['KeyC'], rk: ['KeyV'],
+    sp1: ['KeyA'], sp2: ['KeyS'], sup: ['KeyD'], thr: [], start: ['Enter', 'Space', 'NumpadEnter'], back: ['Escape', 'Backspace'] },
+  {}, // player 2: gamepad only
 ];
 const BTN = ['u', 'd', 'l', 'r', 'lp', 'rp', 'lk', 'rk', 'sp1', 'sp2', 'sup', 'thr', 'start', 'back'];
 const prevHeld = [{}, {}];

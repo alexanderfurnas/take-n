@@ -5,12 +5,11 @@ A retro browser fighting game where pollsters and political take-makers settle i
 **Play:** https://alexanderfurnas.com/take-n/
 
 ## Controls
-| | Move | LP | RP | LK | RK | Hot Take |
-|---|---|---|---|---|---|---|
-| P1 | WASD | U | I | J | K | P |
-| P2 | Arrows | `[` | `]` | `;` | `'` | Right Shift |
+| Move | Punch | Kick | Specials | Hot Take | Throw |
+|---|---|---|---|---|---|
+| Arrows | Z / X | C / V | A / S | D | Z+C |
 
-Specials: P1 presses O or L (P2: `\` or `/`), or the classic ↓↘→+P and ↓↙←+K motions. Hold back to block. Esc pauses and shows the move list, M mutes, C hides the on-screen key guide. Gamepads supported (LB/LT specials, RB hot take).
+Hold back to block (down-back for lows). The classic ↓↘→+P and ↓↙←+K motions also work for specials. Esc pauses and shows the move list, M mutes, H hides the on-screen key guide. Gamepads supported (X/Y punch, A/B kick, LB/LT specials, RB hot take).
 
 New to fighting games? Leave DIFFICULTY on EASY and try PRACTICE first.
 

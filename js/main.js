@@ -212,11 +212,11 @@ function drawHUD() {
   ctx.fillStyle = '#222'; ctx.fillRect(W / 2 - 16, 8, 32, 20);
   if (G.mode === 'practice') txt('∞', W / 2, 10, 16, '#fff', 'center');
   else txt(String(Math.max(0, G.timer)).padStart(2, '0'), W / 2, 10, 16, G.timer <= 10 ? '#f44' : '#fff', 'center');
-  if (G.showKeys && G.mode !== 'versus' && G.mode !== 'demo' && !G.paused) {
+  if (G.showKeys && G.mode !== 'demo' && !G.paused) {
     ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(W / 2 - 108, 238, 216, 31);
-    txt('U/I PUNCH · J/K KICK', W / 2, 240, 8, '#fff', 'center');
-    txt('O/L SPECIALS · P HOT TAKE', W / 2, 250, 8, '#ff0', 'center');
-    txt('HOLD BACK=BLOCK · C:HIDE', W / 2, 260, 8, '#9cf', 'center');
+    txt('Z/X PUNCH · C/V KICK', W / 2, 240, 8, '#fff', 'center');
+    txt('A/S SPECIALS · D HOT TAKE', W / 2, 250, 8, '#ff0', 'center');
+    txt('HOLD BACK=BLOCK · H:HIDE', W / 2, 260, 8, '#9cf', 'center');
   }
   txt(a.def.short, 14, 27, 8, '#fff'); txt(b.def.short, W - 14, 27, 8, '#fff', 'right');
   const tag = f => f.ctrl === 'cpu' ? 'CPU' : f.ctrl === 'dummy' ? 'DUMMY' : f.ctrl === 'p1' ? '1P' : '2P';
@@ -310,7 +310,7 @@ function drawFight() {
   if (G.mode === 'demo' && G.t % 60 < 40) bigTxt('DEMO · PRESS START', W / 2, H - 40, 8, '#fff');
   if (G.paused) drawPause();
 }
-function drawMoveList(d, x, y, keys = ['O', 'L', 'P']) {
+function drawMoveList(d, x, y, keys = ['A', 'S', 'D']) {
   d.specials.forEach((s, i) => { txt(keys[i], x, y, 8, '#ff0'); txt('or', x + 14, y, 8, '#888'); inputTxt(s.input, s.btn.toUpperCase(), x + 36, y, '#ff0'); txt(s.name, x + 92, y, 8, '#ddd'); y += 11; });
   txt(keys[2], x, y, 8, '#f84'); txt('HOT TAKE: ' + d.super.name, x + 36, y, 8, '#ddd');
   return y + 11;
@@ -322,24 +322,24 @@ function drawPause() {
   let y = 106;
   for (const f of G.fighters) {
     txt(f.def.name + ' — ' + f.def.outlet, 30, y, 8, '#ff6719'); y += 12;
-    if (f.ctrl === 'p1' || f.ctrl === 'p2') y = drawMoveList(f.def, 40, y, f.ctrl === 'p2' ? ['\\', '/', 'RSH'] : ['O', 'L', 'P']) + 8;
+    if (f.ctrl === 'p1') y = drawMoveList(f.def, 40, y) + 8;
     else y += 4;
   }
 }
 
 // ---------------------------------------------------------------- title
-const MENU = ['ARCADE', 'VS CPU', '2P VERSUS', 'PRACTICE', 'DIFFICULTY', 'HOW TO PLAY'];
+const MENU = ['ARCADE', 'VS CPU', 'PRACTICE', 'DIFFICULTY', 'HOW TO PLAY'];
 const TOPLINES = ['D+2.1', 'R+0.4', '±3.2', 'n=1,204', 'LV', 'RV', 'A+', 'TIED', 'D+0.3', 'R+5', 'MOE', 'CROSSTAB', 'WEIGHTED', '538?', 'HERDING'];
 function updateTitle() {
   const ip = G.inp[0]; G.idle++;
   if (G.help) { if (ok(ip) || ip.back || ip.start) { G.help = false; SFX.play('select'); } return; }
   if (ip.pu) { G.menu = (G.menu + MENU.length - 1) % MENU.length; SFX.play('select'); G.idle = 0; }
   if (ip.pd) { G.menu = (G.menu + 1) % MENU.length; SFX.play('select'); G.idle = 0; }
-  if (G.menu === 4 && (ip.pl || ip.pr || ok(ip))) { G.diff = (G.diff + (ip.pl ? 2 : 1)) % 3; SFX.play('select'); G.idle = 0; return; }
+  if (G.menu === 3 && (ip.pl || ip.pr || ok(ip))) { G.diff = (G.diff + (ip.pl ? 2 : 1)) % 3; SFX.play('select'); G.idle = 0; return; }
   if (ok(ip)) {
     SFX.play('confirm'); G.idle = 0;
-    if (G.menu === 5) { G.help = true; return; }
-    G.mode = ['arcade', 'vscpu', 'versus', 'practice'][G.menu];
+    if (G.menu === 4) { G.help = true; return; }
+    G.mode = ['arcade', 'vscpu', 'practice'][G.menu];
     G.selLock = [false, false]; G.selStep = 0; G.sel = [G.sel[0] || 0, 1]; G.infoIdx = 0;
     go('select');
   }
@@ -377,30 +377,30 @@ function drawTitle() {
   });
   if (G.help) { drawHelp(); return; }
   MENU.forEach((m, i) => {
-    const sel = G.menu === i, label = i === 4 ? 'DIFFICULTY: ' + DIFFS[G.diff].name : m;
+    const sel = G.menu === i, label = i === 3 ? 'DIFFICULTY: ' + DIFFS[G.diff].name : m;
     if (sel) { ctx.fillStyle = 'rgba(255,60,40,0.25)'; ctx.fillRect(W / 2 - 100, 93 + i * 13, 200, 12); }
-    txt((sel ? '► ' : '') + label + (sel ? ' ◄' : ''), W / 2, 95 + i * 13, 8, sel ? '#fff' : i === 4 ? '#fc6' : '#c99', 'center');
+    txt((sel ? '► ' : '') + label + (sel ? ' ◄' : ''), W / 2, 95 + i * 13, 8, sel ? '#fff' : i === 3 ? '#fc6' : '#c99', 'center');
   });
   if (G.t % 70 < 45) txt('INSERT TAKE', W / 2, 176, 8, '#ff0', 'center');
-  txt('W/S + ENTER TO PICK · M: MUTE', W / 2, 188, 8, '#a77', 'center', null);
+  txt('ARROWS + ENTER TO PICK · M: MUTE', W / 2, 188, 8, '#a77', 'center', null);
 }
 function drawHelp() {
   ctx.fillStyle = 'rgba(0,0,0,0.88)'; ctx.fillRect(10, 86, W - 20, 180);
   const L = [
     ['HOW TO TAKE', '#ff0'],
-    ['      MOVE   PUNCH KICK  SPECIALS HOT TAKE', '#9ab'],
-    ['P1:   WASD    U I   J K    O  L      P', '#fff'],
-    ['P2:   ARROWS  [ ]   ; \'    \\  /     R-SHIFT', '#fff'],
+    ['MOVE: ARROWS    PUNCH: Z X    KICK: C V', '#fff'],
+    ['SPECIALS: A S   HOT TAKE: D   THROW: Z+C', '#fff'],
     ['PAD: X/Y PUNCH A/B KICK LB/LT SPECIAL RB SUPER', '#fff'],
+    ['', ''],
     ['', ''],
     ['HOLD BACK TO BLOCK · DOWN-BACK BLOCKS LOWS', '#fc9'],
     ['HIGHS (PUNCHES) WHIFF ON CROUCHERS', '#fc9'],
-    ['DOWN+RP = LAUNCHER, THEN JUGGLE THEM', '#fc9'],
+    ['DOWN+X = LAUNCHER, THEN JUGGLE THEM', '#fc9'],
     ['ALSO:', '#fc9'],
     ['DOUBLE-TAP FORWARD/BACK = DASH', '#fc9'],
     ['FILL THE TAKE METER, THEN UNLEASH A HOT TAKE', '#fc9'],
     ['BELOW 25% HP: RAGE BAIT (+15% DAMAGE)', '#fc9'],
-    ['ESC: PAUSE (MOVE LIST) · M: MUTE · C: KEYS', '#9ab'],
+    ['ESC: PAUSE (MOVE LIST) · M: MUTE · H: KEYS', '#9ab'],
   ];
   L.forEach(([s, c], i) => txt(s, 24, 93 + i * 12, 8, c, 'left'));
   const yy = 93 + 9 * 12; inputTxt('qcf', 'P', 24 + 48, yy, '#ff0'); txt('/', 24 + 100, yy, 8, '#fc9'); inputTxt('qcb', 'K', 24 + 116, yy, '#ff0'); txt('(OLD-SCHOOL)', 24 + 170, yy, 8, '#888');
@@ -481,7 +481,7 @@ function drawSelect() {
   txt(d.outlet, W / 2, py + 12, 8, '#ff6719', 'center');
   txt(d.title, W / 2, py + 24, 8, '#9ab', 'center');
   let y = py + 40;
-  const keys = G.mode === 'versus' && G.infoIdx === 1 ? ['\\', '/', 'RSH'] : ['O', 'L', 'P'];
+  const keys = ['A', 'S', 'D'];
   d.specials.forEach((s, i) => { txt(keys[i], px, y, 8, '#ff0'); txt(s.name, px + 32, y, 8, '#fff'); y += 12; });
   txt(keys[2], px, y, 8, '#f84'); txt(d.super.name, px + 32, y, 8, '#f84'); y += 16;
   const desc = G.t % 360 < 120 ? d.specials[0].desc : G.t % 360 < 240 ? d.specials[1].desc : d.super.desc;
@@ -564,7 +564,7 @@ function drawEnding() {
 // ---------------------------------------------------------------- loop
 function update() {
   G.t++;
-  G.inp = [readPlayer(0, G.mode !== 'versus'), readPlayer(1, false)];
+  G.inp = [readPlayer(0, false), readPlayer(1, false)];
   SFX.tick();
   switch (G.scene) {
     case 'title': updateTitle(); break;
